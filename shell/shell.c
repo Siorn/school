@@ -1,15 +1,16 @@
 /*
  * author : albrile erik
- * version : 0.1
+ * version : 1.1
  *
  * una shell di comando
  */
  
- #include <stdio.h>
- #include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <stdbool.h>
  
- #define PROMPT "shellpro $ "
+#define PROMPT "shellpro $ "
  
 /*PROTOTIPI FUNZIONI
 *
@@ -66,7 +67,7 @@ int main(){
   wait();
   free(cmd);
   free_array(cmd_array); //scorre tutto l'array e free() per ogni stringa che trova
-  cmd=prompt();
+  
  
  }
 
@@ -124,66 +125,52 @@ char* strdup(char* str){
 char** split(char* str, char comma){
 
   char** ret; /*array restituito*/
+  char** tmp; /*array temporaneo usato per la duplicazione*/
+  char* split_buff[1024]; /*buffer per lo split*/
+  char* first_char; /*primo char di ogni parola*/
+  bool was_endstring; /*per sapere se era comma o \0*/
+  int i=0;
+  int j;
 
-   /*usato per contare le parole*/
-  char* c = str; /*punta al carattere che controllo per cercare i separatori*/
-  int numero_parole = 0;
-  bool comma_prec=true;
 
-  /*usato per splittare*/
-  char* str_tmp[512];/*continene la stringa temporanea man mano che la copio*/
-  int i;
+  while(*str){ /*tutta la stringa passata*/
+    first_char = str; /*salvo il primo carattere della stringa*/
 
-  /*conto quante parole ci sono nella stringa*/
-  while(*c){
+    if(*str == '\0') was_endstring = true;
+    
 
-      if(*c == comma) {
-        comma_prec = true; /*se trova un separatore lo segnala*/
-      }
-      else{ /* *c!=comma && *c!=\0 */
-          numero_parole++; /*carattere dopo separatore significa nuova parola*/
-          comma_prec = false;
-      }
+    for(;!(*str==comma || *str=='\0'); str++){} /*finchè non trova un separatore o fine stringa*/
+    *str='\0'; /*metto un fine stringa al posto del separatore*/
 
-      c++;
+    split_buff[i] = strdup(first_char); /*duplico dal primo carattere alla comma (che è stata sostituita con \0)*/
+
+    i++; /*mi sposto alla successiva cella dell'array*/
+    if(!was_endstring) str++; /*se prima era un separatore(quindi non era l'ultima parola) sposto avanti il puntatore*/
   }
 
-  **ret = (char**) malloc( sizeof(char*) * (numero_parole+1) ); /*alloco lo spazio per l'array*/
+  split_buff[i]=NULL; /*aggiungo una cella NULL alla fine dell'array*/
 
-  /*splitto la stringa*/
-  c=str; /*riparto dall'inizio*/
+  /*duplico l'array allocandolo dinamicamente*/
+  ret = (char**) malloc(sizeof(char*) + (i+1));
+  for(j=0, tmp=ret; *tmp=split_buff[j]; j++, tmp++){}
 
-  while(*c){
-
-    while(*c == comma) c++; /*salta i separatori*/
-
-    for(i=0; (str_tmp[i]=*c) != comma && *c; i++,c++){} /*copio in str_tmp tutti i caratteri di *c fino al separatore*/
-    str_tmp[++i] = '\0'; /*aggiungo il carattere di fine stringa a fine parola*/
-
-    *ret = (char*) malloc(sizeof(char*) + (i+1)); /*alloco lo spazio per la singola parola (i è la lunghezza della parola)*/
-    *ret = strdup(str_tmp); /*copio la parola in ret dopo allocata dinamicamente*/
-    ret++; /*passo alla stringa dopo*/
-  }
-
-  /*aggiunge una stringa contentente solo '\0' come cella di fine vettore*/
-  *ret = (char*) malloc(sizeof(char*));
-  *ret = '\0';
-
-  return **ret;
+  return ret;
 }
 
 /* prompt base
  */
 char* prompt(){
  printf(PROMPT);
- return(input_str);
+ return(input_str());
 }
 
 /* rilascia tutte le celle allocate dinamicamente di un array
 */
 void free_array(char** din_array){
-  while( len_str(*din_array) ) /*l'ultima cella di un array dinamico contiene solo uncarattere '\0'*/
+  char** tmp;
+  for(tmp=din_array; din_array; din_array++)
     free(*din_array);
+  free(tmp);
 }
 
 /* restituisce lunghezza della stringa passata
