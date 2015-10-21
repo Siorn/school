@@ -9,8 +9,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/wait.h>
  
-#define PROMPT "shellpro $ "
+#define PROMPT "$> "
  
 /*PROTOTIPI FUNZIONI
 *
@@ -28,50 +29,56 @@
 *
 * char** split(char* str, char comma)
 *   splitta una stringa secondo ogni "comma"
-*   return: array di stringhe dinamico WARN ricordare di rilasciare la memoria allocata con questa funzione(v. free_array)
+*   return: array di stringhe dinamico WARN: ricordare di rilasciare la memoria allocata con questa funzione(v. free_array)
 *
 * char* prompt()
 *   stampa il prompt della shell e attenda un input
 *   return: stringa di input
 *
-* int len_str(char* str)
+* size_t len_str(char* str)
 *   return: lunghezza di str
 *
 * free_array(char** din_array)
-*   rilascia tutte le celle di un array allocate dinamicamente
+*   libera tutte le celle di un array allocate dinamicamente
 */
 int cmpstr(char*s1, char*s2);
 char* input_str();
 char* strdup(char* str);
 char** split(char* str, char comma);
 char* prompt();
-int len_str(char* str);
+size_t len_str(char* str);
 void free_array(char** din_array);
 
 int main(){
  
- char* cmd;
-  
+  char* cmd;
+  char** cmd_array;
 
- /*comparo stringa presa in input e "exit"*/
- while( cmpstr(cmd=prompt(), "exit" ) ){
+ /* continuo a chiedere input
+  * parole chiave vengono controllate dopo
+  */
+ while(1){
   
-  char** cmd_array=split(cmd, ' ');
+  cmd=prompt();
+
+  if( !cmpstr(cmd, "exit") ) /*controllo che l'input non sia "exit"*/
+      return EXIT_SUCCESS;
+
+  cmd_array=split(cmd, ' ');
   
   if(!fork()){
    execvp(cmd_array[0], cmd_array);
-   printf("command not found");
-   return(-1);
+   fprintf(stderr, "error: %s: command not found\n", cmd_array[0]);
+   return EXIT_FAILURE;
   }
   
-  wait();
+  wait(NULL);
   free(cmd);
-  free_array(cmd_array); //scorre tutto l'array e free() per ogni stringa che trova
+  free_array(cmd_array); /*scorre tutto l'array e free() per ogni stringa che trova*/
   
- 
  }
 
- return 0;
+ return EXIT_SUCCESS;
 }
  
  
@@ -94,10 +101,18 @@ int cmpstr(char*s1, char*s2){
 char* input_str(){
 
  char buffer[4096];
- int i;
+ size_t i;
   
- for(i=0; (buffer[i] = getchar()) != '\n'; i++){} //salva i caratteri premuti uno dopo l'altro
- buffer[i]='\0'; //sostituisce il carattere finale ('\n') con il carattere di fine riga ('\0')
+ for(i=0; i < 4095; i++){
+  int c = getchar();
+
+  if (c== '\n'){ 
+    break;
+  }
+
+  buffer[i] = c;
+ } 
+ buffer[i]='\0'; /*sostituisce il carattere finale ('\n') con il carattere di fine riga ('\0')*/
  
  
  return (strdup(buffer)); 
@@ -113,7 +128,7 @@ char* strdup(char* str){
  char *ret, *d;
  ret = (char*)malloc(sizeof(char) * (len_str(str)+1));
  
- for(d=ret; *d=*str; d++,str++){} 
+ for(d=ret; (*d=*str); d++,str++){} 
  
  return(ret);
 }
@@ -129,8 +144,8 @@ char** split(char* str, char comma){
   char* split_buff[1024]; /*buffer per lo split*/
   char* first_char; /*primo char di ogni parola*/
   bool was_endstring; /*per sapere se era comma o \0*/
-  int i=0;
-  int j;
+  size_t i=0;
+  size_t j;
 
 
   while(*str){ /*tutta la stringa passata*/
@@ -152,31 +167,33 @@ char** split(char* str, char comma){
 
   /*duplico l'array allocandolo dinamicamente*/
   ret = (char**) malloc(sizeof(char*) + (i+1));
-  for(j=0, tmp=ret; *tmp=split_buff[j]; j++, tmp++){}
+  tmp=ret;
+  for(j=0; (*tmp=split_buff[j]); j++)
+    tmp++;
 
   return ret;
 }
 
-/* prompt base
+/* prompt
  */
 char* prompt(){
- printf(PROMPT);
+ fputs(PROMPT, stdout);
  return(input_str());
 }
 
-/* rilascia tutte le celle allocate dinamicamente di un array
+/* libera tutte le celle allocate dinamicamente di un array
 */
 void free_array(char** din_array){
-  char** tmp;
-  for(tmp=din_array; din_array; din_array++)
+  char** orig = din_array;
+  for(; *din_array; din_array++)
     free(*din_array);
-  free(tmp);
+  free(orig);
 }
 
 /* restituisce lunghezza della stringa passata
 */
-int len_str(char* str){
-  int i;
+size_t len_str(char* str){
+  size_t i;
   for(i=0; str[i]!='\0'; i++){}
   return i;
 }
