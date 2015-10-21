@@ -166,7 +166,7 @@ char** split(char* str, char comma){
   split_buff[i]=NULL; /*aggiungo una cella NULL alla fine dell'array*/
 
   /*duplico l'array allocandolo dinamicamente*/
-  ret = (char**) malloc(sizeof(char*) + (i+1));
+  ret = (char**) malloc(sizeof(char*) * (i+1));
   tmp=ret;
   for(j=0; (*tmp=split_buff[j]); j++)
     tmp++;
